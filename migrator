@@ -21,37 +21,49 @@ foreach ($methods as $method) {
     \preg_match($pattern, $classToMigrate, $matches);
     $methodSignature = $matches[0];
     $oldMethodSignature = $methodSignature;
+    $typeParams = buildType($params);
+    $paramsName = buildParam($params);
+    $combineParamType = \array_combine($paramsName,  $typeParams);
 
-    foreach ($params as $param) {
-        $type = (string) $param->getType();
-        $types = \explode('|', $type);
-        $paramName = '$' . $param->getVariableName();
-        $typesNum = \count($types);
-
-        if ($typesNum > 2) {
-            continue;
-        } elseif ($typesNum === 2 && in_array('null', $types)) {
-            $type = '?' . ($types[0] === 'null' ? $types[1] : $types[0]);
-        }
-
+    foreach ($combineParamType as $paramName => $type) {
         $methodSignature = \str_replace($paramName, $type . ' ' . $paramName, $methodSignature);
     }
 
-    foreach ($returns as $return) {
-        $type = (string) $return->getType();
-        $types = \explode('|', $type);
-        $typesNum = \count($types);
+    $typeReturns = buildType($returns);
 
-        if ($typesNum > 2) {
-            continue;
-        } elseif ($typesNum === 2 && in_array('null', $types)) {
-            $type = '?' . ($types[0] === 'null' ? $types[1] : $types[0]);
-        }
-
-        $methodSignature = \str_replace(')', ') : '.$type, $methodSignature);
+    foreach ($typeReturns as $return) {
+        $methodSignature = \str_replace(')', ') : '.$return, $methodSignature);
     }
 
     $classToMigrate = \str_replace($oldMethodSignature, $methodSignature, $classToMigrate);
 }
 
 \file_put_contents($classToMigrateFile, $classToMigrate);
+
+
+
+function buildType($arrayType) {
+     $allType = [];
+    foreach ($arrayType as $type) {
+        $type = (string) $type->getType();
+        $types = \explode('|', $type);
+        $typesNum = \count($types);
+
+        if ($typesNum > 2) {
+            continue;
+        } elseif ($typesNum === 2 && in_array('null', $types)) {
+            $type = '?' . ($types[0] === 'null' ? $types[1] : $types[0]);
+        }
+         $allType[] = $type;
+    }
+    return $allType;
+}
+
+function buildParam($params) {
+    $vars = [];
+    foreach ($params as $param) {
+        $paramName = '$' . $param->getVariableName();
+        $vars[] = $paramName;
+    }
+    return $vars;
+}
